@@ -359,6 +359,13 @@
             <param name="key"></param>
             <returns></returns>
         </member>
+        <member name="M:Blog.Core.Controllers.RoleController.GetRoleTree(System.Int32)">
+            <summary>
+            获取角色树
+            </summary>
+            <param name="pid">父级Id</param>
+            <returns></returns>
+        </member>
         <member name="M:Blog.Core.Controllers.RoleController.Post(Blog.Core.Model.Models.Role)">
             <summary>
             添加角色

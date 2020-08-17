@@ -86,6 +86,44 @@ namespace Blog.Core.Controllers
             };
         }
 
+        /// <summary>
+        /// 获取角色树
+        /// </summary>
+        /// <param name="pid">父级Id</param>
+        /// <returns></returns>
+        [HttpGet]
+        public async Task<MessageModel<RoleTree>> GetRoleTree(int pid = 0)
+        {
+            var data = new MessageModel<RoleTree>();
+            var roles = await _roleServices.Query(d => d.IsDeleted == false);
+            var roleTrees = (from child in roles
+                                   where child.IsDeleted == false
+                                   orderby child.OrderSort
+                                   select new RoleTree
+                                   {
+                                       value = child.Id,
+                                       label = child.Name,
+                                       pid = child.Pid,
+                                       order = child.OrderSort,
+                                   }).ToList();
+            RoleTree rootRoot = new RoleTree
+            {
+                value = 0,
+                pid = 0,
+                label = "根节点"
+            };
+            RecursionHelper.LoopToAppendChildrenT(roleTrees, rootRoot);
+
+            data.success = true;
+            if (data.success)
+            {
+                data.response = rootRoot;
+                data.msg = "获取成功";
+            }
+
+            return data;
+        }
+
         // GET: api/User/5
         [HttpGet("{id}")]
         public string Get(string id)
