@@ -48,7 +48,7 @@ namespace Blog.Core.Controllers
             int intPageSize = 50;
 
             //var roleList = await _roleServices.QueryPage(a => a.IsDeleted != true && (a.Name != null && a.Name.Contains(key)), page, intPageSize, " Id desc ");
-            var userRoleIds = (await _userRoleServices.Query(it => it.UserId == _user.ID)).Select(it=>it.RoleId).ToList();
+            var userRoleIds = (await _userRoleServices.Query(it => it.UserId == _user.ID && it.IsDeleted == false)).Select(it=>it.RoleId).ToList();
             PageModel<Role> roles;
             if (userRoleIds.Contains(1))
             {
@@ -143,8 +143,7 @@ namespace Blog.Core.Controllers
         public async Task<MessageModel<List<RoleTree>>> GetCurrentUserRoleTree(bool hasCurrentRole = false)
         {
             var userRoles = await _userRoleServices.Query(it => it.UserId == _user.ID);
-            var roleIds = userRoles.Select(it => it.Id).ToList();
-            var roles = await _roleServices.Query(it=> roleIds.Contains(it.Id));
+            var roleIds = userRoles.Select(it => it.RoleId).ToList();
             var data = new MessageModel<List<RoleTree>>();
             //超级管理员例外，可以操作所有角色。
             var allRoles = await _roleServices.Query(d => d.IsDeleted == false);
@@ -159,13 +158,17 @@ namespace Blog.Core.Controllers
                                  order = child.OrderSort,
                              }).ToList();
             var roleTreeList = new List<RoleTree>();
+            if (roleIds.Contains(1))
+            {
+                roleIds = allRoles.Where(it => it.Pid == 0 && it.Id != 1).Select(it => it.Id).ToList();
+            }
             roleIds.ForEach(id =>
             {
                 RoleTree rootRoot = new RoleTree
                 {
                     value = id,
                     pid = 0,
-                    label = roles.Find(it => it.Id == id).Name
+                    label = allRoles.Find(it => it.Id == id).Name
                 };
                 RecursionHelper.LoopToAppendChildrenT(roleTrees, rootRoot);
                 roleTreeList.Add(rootRoot);

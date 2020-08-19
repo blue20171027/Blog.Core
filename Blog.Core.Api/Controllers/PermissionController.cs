@@ -313,9 +313,17 @@ namespace Blog.Core.Controllers
                 label = "根节点"
             };
 
-            if (pids.Any())
+            if (pids.Any() || roleIds.Contains(1))//超级管理员
             {
-                var rolePermissionMoudles = (await _permissionServices.Query(d => pids.Contains(d.Id) && d.IsDeleted == false)).OrderBy(c => c.OrderSort);
+                IOrderedEnumerable<Permission> rolePermissionMoudles;
+                if (roleIds.Contains(1))
+                {
+                    rolePermissionMoudles = (await _permissionServices.Query(d => d.IsDeleted == false)).OrderBy(c => c.OrderSort);
+                }
+                else
+                {
+                    rolePermissionMoudles = (await _permissionServices.Query(d => pids.Contains(d.Id) && d.IsDeleted == false)).OrderBy(c => c.OrderSort);
+                }
                 var permissionTrees = (from child in rolePermissionMoudles
                                        orderby child.Id
                                        select new PermissionTree
@@ -375,10 +383,18 @@ namespace Blog.Core.Controllers
             {
                 if (roleIds.Any())
                 {
-                    var pids = (await _roleModulePermissionServices.Query(d => d.IsDeleted == false && roleIds.Contains(d.RoleId))).Select(d => d.PermissionId.ObjToInt()).Distinct();
-                    if (pids.Any())
+                    IEnumerable<int> pids = pids = (await _roleModulePermissionServices.Query(d => d.IsDeleted == false && roleIds.Contains(d.RoleId))).Select(d => d.PermissionId.ObjToInt()).Distinct();
+                    if (pids.Any() || roleIds.Contains(1))
                     {
-                        var rolePermissionMoudles = (await _permissionServices.Query(d => pids.Contains(d.Id))).OrderBy(c => c.OrderSort);
+                        IOrderedEnumerable<Permission> rolePermissionMoudles;
+                        if (roleIds.Contains(1))
+                        {
+                            rolePermissionMoudles = (await _permissionServices.Query(d => d.IsDeleted == false)).OrderBy(c => c.OrderSort);
+                        }
+                        else
+                        {
+                            rolePermissionMoudles = (await _permissionServices.Query(d => d.IsDeleted == false && pids.Contains(d.Id))).OrderBy(c => c.OrderSort);
+                        }
                         var permissionTrees = (from child in rolePermissionMoudles
                                                where child.IsDeleted == false
                                                orderby child.Id

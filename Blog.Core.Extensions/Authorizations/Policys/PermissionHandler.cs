@@ -1,4 +1,5 @@
 ﻿using Blog.Core.Common.Helper;
+using Blog.Core.Common.HttpContextUser;
 using Blog.Core.IServices;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -24,6 +25,8 @@ namespace Blog.Core.AuthHelper
         public IAuthenticationSchemeProvider Schemes { get; set; }
         private readonly IRoleModulePermissionServices _roleModulePermissionServices;
         private readonly IHttpContextAccessor _accessor;
+        private readonly IUserRoleServices userRoleServices;
+        private readonly IUser user;
 
         /// <summary>
         /// 构造函数注入
@@ -31,9 +34,12 @@ namespace Blog.Core.AuthHelper
         /// <param name="schemes"></param>
         /// <param name="roleModulePermissionServices"></param>
         /// <param name="accessor"></param>
-        public PermissionHandler(IAuthenticationSchemeProvider schemes, IRoleModulePermissionServices roleModulePermissionServices, IHttpContextAccessor accessor)
+        public PermissionHandler(IAuthenticationSchemeProvider schemes, IRoleModulePermissionServices roleModulePermissionServices, IHttpContextAccessor accessor, 
+            IUserRoleServices userRoleServices, IUser user)
         {
             _accessor = accessor;
+            this.userRoleServices = userRoleServices;
+            this.user = user;
             Schemes = schemes;
             _roleModulePermissionServices = roleModulePermissionServices;
         }
@@ -131,20 +137,28 @@ namespace Blog.Core.AuthHelper
                         }
 
                         var isMatchRole = false;
-                        var permisssionRoles = requirement.Permissions.Where(w => currentUserRoles.Contains(w.Role));
-                        foreach (var item in permisssionRoles)
+                        var roleIds = (await userRoleServices.Query(d => d.IsDeleted == false && d.UserId == user.ID)).Select(d => d.RoleId.ObjToInt()).Distinct().ToList();
+                        if (roleIds.Contains(1))//超级管理员不需要菜单验证
                         {
-                            try
+                            isMatchRole = true;
+                        }
+                        else
+                        {
+                            var permisssionRoles = requirement.Permissions.Where(w => currentUserRoles.Contains(w.Role));
+                            foreach (var item in permisssionRoles)
                             {
-                                if (Regex.Match(questUrl, item.Url?.ObjToString().ToLower())?.Value == questUrl)
+                                try
                                 {
-                                    isMatchRole = true;
-                                    break;
+                                    if (Regex.Match(questUrl, item.Url?.ObjToString().ToLower())?.Value == questUrl)
+                                    {
+                                        isMatchRole = true;
+                                        break;
+                                    }
                                 }
-                            }
-                            catch (Exception)
-                            {
-                                // ignored
+                                catch (Exception)
+                                {
+                                    // ignored
+                                }
                             }
                         }
 

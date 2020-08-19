@@ -85,7 +85,7 @@ namespace Blog.Core.Controllers
             var allUserRoles = await _userRoleServices.Query(d => d.IsDeleted == false && userIds.Contains(d.UserId));
             var allRoles = await _roleServices.Query(d => d.IsDeleted == false);
 
-            var currentRoleId = (await _userRoleServices.Query(it => it.UserId == _user.ID)).FirstOrDefault();
+            var currentRoleId = (await _userRoleServices.Query(it => it.UserId == _user.ID && it.IsDeleted == false)).FirstOrDefault();
             var sysUserInfos = data.data;
             foreach (var item in sysUserInfos)
             {
