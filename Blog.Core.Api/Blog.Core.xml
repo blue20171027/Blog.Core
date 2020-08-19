@@ -359,11 +359,17 @@
             <param name="key"></param>
             <returns></returns>
         </member>
-        <member name="M:Blog.Core.Controllers.RoleController.GetRoleTree(System.Int32)">
+        <member name="M:Blog.Core.Controllers.RoleController.GetRoleTree">
             <summary>
             获取角色树
             </summary>
-            <param name="pid">父级Id</param>
+            <returns></returns>
+        </member>
+        <member name="M:Blog.Core.Controllers.RoleController.GetCurrentUserRoleTree(System.Boolean)">
+            <summary>
+            获取角色树
+            </summary>
+            <param name="hasCurrentRole">是否包含当前角色</param>
             <returns></returns>
         </member>
         <member name="M:Blog.Core.Controllers.RoleController.Post(Blog.Core.Model.Models.Role)">

@@ -12,6 +12,7 @@ using Blog.Core.Model.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SqlSugar;
 
 namespace Blog.Core.Controllers
 {
@@ -39,7 +40,8 @@ namespace Blog.Core.Controllers
         /// <param name="roleServices"></param>
         /// <param name="user"></param>
         /// <param name="logger"></param>
-        public UserController(IUnitOfWork unitOfWork, ISysUserInfoServices sysUserInfoServices, IUserRoleServices userRoleServices, IRoleServices roleServices, IUser user, ILogger<UserController> logger)
+        public UserController(IUnitOfWork unitOfWork, ISysUserInfoServices sysUserInfoServices, IUserRoleServices userRoleServices, 
+            IRoleServices roleServices, IUser user, ILogger<UserController> logger)
         {
             _unitOfWork = unitOfWork;
             _sysUserInfoServices = sysUserInfoServices;
@@ -64,23 +66,58 @@ namespace Blog.Core.Controllers
                 key = "";
             }
             int intPageSize = 50;
-
-
-            var data = await _sysUserInfoServices.QueryPage(a => a.tdIsDelete != true && a.uStatus >= 0 && ((a.uLoginName != null && a.uLoginName.Contains(key)) || (a.uRealName != null && a.uRealName.Contains(key))), page, intPageSize, " uID desc ");
-
+            var nextRoleIds = (await _roleServices.GetNextRoles(_user.ID)).Select(it=>it.Id).ToList();
+            var data = await _sysUserInfoServices.QueryTabsPage<sysUserInfo, UserRole, sysUserInfo>((a, b) => 
+                new object[]
+                {
+                    JoinType.Inner, a.uID == b.UserId
+                },
+                (a, b) => a.tdIsDelete != true && a.uStatus >= 0 && ((a.uLoginName != null && a.uLoginName.Contains(key)) || (a.uRealName != null && a.uRealName.Contains(key))
+                && nextRoleIds.Contains(b.RoleId)),
+                a => new { a.uID },
+                (a, b) => a,
+                page, intPageSize, " uID desc ");
 
             #region MyRegion
 
             // 这里可以封装到多表查询，此处简单处理
-            var allUserRoles = await _userRoleServices.Query(d => d.IsDeleted == false);
+            var userIds = data.data.Select(it => it.uID).ToList();
+            var allUserRoles = await _userRoleServices.Query(d => d.IsDeleted == false && userIds.Contains(d.UserId));
             var allRoles = await _roleServices.Query(d => d.IsDeleted == false);
 
+            var currentRoleId = (await _userRoleServices.Query(it => it.UserId == _user.ID)).FirstOrDefault();
             var sysUserInfos = data.data;
             foreach (var item in sysUserInfos)
             {
-                var currentUserRoles = allUserRoles.Where(d => d.UserId == item.uID).Select(d => d.RoleId).ToList();
-                item.RIDs = currentUserRoles;
-                item.RoleNames = allRoles.Where(d => currentUserRoles.Contains(d.Id)).Select(d => d.Name).ToList();
+
+                item.RIDArray = await _roleServices.GetPreviousRoleIds(item.uID);
+                var userRoleIds = allUserRoles.Where(d => d.UserId == item.uID).Select(d => d.RoleId).ToList();
+                List<List<int>> roleIds = new List<List<int>>();
+                foreach (var roleId in userRoleIds)
+                {
+                    List<int> ids = new List<int>();
+                    var role = allRoles.Where(it => it.Id == roleId).FirstOrDefault();
+                    if (role == null) continue;
+                    ids.Add(role.Id);
+                    Role parent = allRoles.Where(it => it.Id == role.Pid).FirstOrDefault();
+                    if (parent != null)
+                    {
+                        ids.Add(parent.Id);
+                    }
+                    while (parent != null)
+                    {
+                        parent = allRoles.Where(it => it.Id == parent.Pid).FirstOrDefault();
+                        if (parent != null)
+                        {
+                            ids.Add(parent.Id);
+                        }
+                    };
+                    ids.Reverse();
+                    roleIds.Add(ids);
+                }
+                item.RIDs = new List<int>();
+                item.RIDArray = roleIds;
+                item.RoleNames = allRoles.Where(d => userRoleIds.Contains(d.Id)).Select(d => d.Name).ToList();
             }
 
             data.data = sysUserInfos;

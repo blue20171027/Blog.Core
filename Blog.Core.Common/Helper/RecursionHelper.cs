@@ -85,7 +85,21 @@ namespace Blog.Core.Common.Helper
             if (subItems.Count > 0) curItem.GetType().GetProperty(childrenName).SetValue(curItem, subItems);
             foreach (var subItem in subItems)
             {
-                LoopToAppendChildrenT(all, subItem);
+                LoopToAppendChildrenT(all, subItem, parentIdName, idName, childrenName);
+            }
+        }
+
+        public static void LoopToAppendList<T>(List<T> all, T curItem, List<T> loopList, string parentIdName = "Pid", string idName = "Id")
+        {
+            var subItems = all.Where(ee => ee.GetType().GetProperty(parentIdName).GetValue(ee, null).ToString() == curItem.GetType().GetProperty(idName).GetValue(curItem, null).ToString()).ToList();
+
+            if (subItems.Count > 0)
+            {
+                subItems.ForEach(it=> loopList.Add(it));
+            }
+            foreach (var subItem in subItems)
+            {
+                LoopToAppendList(all, subItem, loopList, parentIdName, idName);
             }
         }
     }
@@ -104,6 +118,7 @@ namespace Blog.Core.Common.Helper
 
     public class RoleTree
     {
+        public int id { get; set; }
         public int value { get; set; }
         public int pid { get; set; }
         public string label { get; set; }

@@ -61,5 +61,38 @@ namespace Blog.Core.IRepository.Base
             Expression<Func<T, T2, T3, object[]>> joinExpression,
             Expression<Func<T, T2, T3, TResult>> selectExpression,
             Expression<Func<T, T2, T3, bool>> whereLambda = null) where T : class, new();
+        /// <summary>
+        /// 两表联合查询-分页
+        /// </summary>
+        /// <typeparam name="T">实体1</typeparam>
+        /// <typeparam name="T2">实体1</typeparam>
+        /// <typeparam name="TResult">返回对象</typeparam>
+        /// <param name="joinExpression">关联表达式</param>
+        /// <param name="selectExpression">返回表达式</param>
+        /// <param name="whereExpression">查询表达式</param>
+        /// <param name="intPageIndex">页码</param>
+        /// <param name="intPageSize">页大小</param>
+        /// <param name="strOrderByFileds">排序字段</param>
+        /// <returns></returns>
+        Task<PageModel<TResult>> QueryTabsPage<T, T2, TResult>(
+            Expression<Func<T, T2, object[]>> joinExpression,
+            Expression<Func<T, T2, bool>> whereExpression,
+            Expression<Func<T, T2, TResult>> selectExpression,
+            int intPageIndex = 1,
+            int intPageSize = 20,
+            string strOrderByFileds = null);
+        /// <summary>
+        /// 两表联合查询-分页-分组
+        /// </summary>
+        /// <typeparam name="T">实体1</typeparam>
+        /// <typeparam name="T2">实体1</typeparam>
+        /// <typeparam name="TResult">返回对象</typeparam>
+        /// <param name="joinExpression">关联表达式</param>
+        /// <param name="selectExpression">返回表达式</param>
+        /// <param name="whereExpression">查询表达式</param>
+        /// <param name="intPageIndex">页码</param>
+        /// <param name="intPageSize">页大小</param>
+        /// <param name="strOrderByFileds">排序字段</param>
+        Task<PageModel<TResult>> QueryTabsPage<T, T2, TResult>(Expression<Func<T, T2, object[]>> joinExpression, Expression<Func<T, T2, bool>> whereExpression, Expression<Func<T, object>> groupExpression, Expression<Func<T, T2, TResult>> selectExpression, int intPageIndex = 1, int intPageSize = 20, string strOrderByFileds = null);
     }
 }

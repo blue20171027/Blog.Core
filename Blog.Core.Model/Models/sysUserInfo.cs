@@ -100,6 +100,8 @@ namespace Blog.Core.Model.Models
         [SugarColumn(IsIgnore = true)]
         public List<int> RIDs { get; set; }
         [SugarColumn(IsIgnore = true)]
+        public List<List<int>> RIDArray { get; set; }
+        [SugarColumn(IsIgnore = true)]
         public List<string> RoleNames { get; set; }
 
     }

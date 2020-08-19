@@ -303,19 +303,9 @@ namespace Blog.Core.Controllers
         public async Task<MessageModel<PermissionTree>> GetPermissionTree(int pid = 0, bool needbtn = false)
         {
             var data = new MessageModel<PermissionTree>();
-
-            var permissions = await _permissionServices.Query(d => d.IsDeleted == false);
-            var permissionTrees = (from child in permissions
-                                   where child.IsDeleted == false
-                                   orderby child.Id
-                                   select new PermissionTree
-                                   {
-                                       value = child.Id,
-                                       label = child.Name,
-                                       Pid = child.Pid,
-                                       isbtn = child.IsButton,
-                                       order = child.OrderSort,
-                                   }).ToList();
+            var roleIds = (await _userRoleServices.Query(d => d.IsDeleted == false && d.UserId == _user.ID)).Select(d => d.RoleId.ObjToInt()).Distinct().ToList();
+            var pids = (await _roleModulePermissionServices.Query(d => d.IsDeleted == false && roleIds.Contains(d.RoleId))).Select(
+                d => d.PermissionId.ObjToInt()).Distinct();
             PermissionTree rootRoot = new PermissionTree
             {
                 value = 0,
@@ -323,11 +313,22 @@ namespace Blog.Core.Controllers
                 label = "根节点"
             };
 
-            permissionTrees = permissionTrees.OrderBy(d => d.order).ToList();
-
-
-            RecursionHelper.LoopToAppendChildren(permissionTrees, rootRoot, pid, needbtn);
-
+            if (pids.Any())
+            {
+                var rolePermissionMoudles = (await _permissionServices.Query(d => pids.Contains(d.Id) && d.IsDeleted == false)).OrderBy(c => c.OrderSort);
+                var permissionTrees = (from child in rolePermissionMoudles
+                                       orderby child.Id
+                                       select new PermissionTree
+                                       {
+                                           value = child.Id,
+                                           label = child.Name,
+                                           Pid = child.Pid,
+                                           isbtn = child.IsButton,
+                                           order = child.OrderSort,
+                                       }).ToList();
+                permissionTrees = permissionTrees.OrderBy(d => d.order).ToList();
+                RecursionHelper.LoopToAppendChildren(permissionTrees, rootRoot, pid, needbtn);
+            }
             data.success = true;
             if (data.success)
             {

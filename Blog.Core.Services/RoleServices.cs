@@ -1,8 +1,10 @@
 using Blog.Core.Common;
-using Blog.Core.IRepository.Base;
+using Blog.Core.Common.Helper;
 using Blog.Core.IServices;
 using Blog.Core.Model.Models;
+using Blog.Core.Repository;
 using Blog.Core.Services.BASE;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,10 +16,13 @@ namespace Blog.Core.Services
     public class RoleServices : BaseServices<Role>, IRoleServices
     {
 
-        IBaseRepository<Role> _dal;
-        public RoleServices(IBaseRepository<Role> dal)
+        IRoleRepository _dal;
+        private readonly IUserRoleServices userRoleServices;
+
+        public RoleServices(IRoleRepository dal, IUserRoleServices userRoleServices)
         {
             this._dal = dal;
+            this.userRoleServices = userRoleServices;
             base.BaseDal = dal;
         }
        /// <summary>
@@ -60,6 +65,38 @@ namespace Blog.Core.Services
             var count = await _dal.QueryCount(it => it.Pid == id && it.IsDeleted != true);
 
             return count > 0;
+        }
+
+        /// <summary>
+        /// 获取某个用户的所有上级角色
+        /// </summary>
+        /// <param name="userId">用户id</param>
+        /// <returns></returns>
+        public async Task<List<List<int>>> GetPreviousRoleIds(int userId)
+        {
+            var list = await _dal.PreviousRecursion(userId);
+            var ridArray = list.GroupBy(it=>it.RoleId).Select(it => it.Select(a=>a.Id).ToList()).ToList();
+
+            return ridArray;
+        }
+
+        /// <summary>
+        /// 获取某个用户的所有下级角色
+        /// </summary>
+        /// <param name="userId">用户id</param>
+        /// <returns></returns>
+        public async Task<List<Role>> GetNextRoles(int userId)
+        {
+            var userRoleList = await userRoleServices.Query(it => it.UserId == userId && it.IsDeleted == false);
+            var roleList = new List<Role>();
+            var allRoleList = await _dal.Query(it=>it.IsDeleted == false);
+            userRoleList.ForEach(it=> 
+            {
+                var role = allRoleList.Find(a=>a.Id == it.RoleId);
+                RecursionHelper.LoopToAppendList(allRoleList, role, roleList);
+            });
+
+            return roleList;
         }
     }
 }

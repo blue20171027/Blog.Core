@@ -21,12 +21,13 @@ namespace Blog.Core.Controllers
     {
         readonly IRoleServices _roleServices;
         readonly IUser _user;
+        private readonly IUserRoleServices _userRoleServices;
 
-     
-        public RoleController(IRoleServices roleServices, IUser user)
+        public RoleController(IRoleServices roleServices, IUser user, IUserRoleServices userRoleServices)
         {
             _roleServices = roleServices;
             _user = user;
+            _userRoleServices = userRoleServices;
         }
 
         /// <summary>
@@ -47,18 +48,28 @@ namespace Blog.Core.Controllers
             int intPageSize = 50;
 
             //var roleList = await _roleServices.QueryPage(a => a.IsDeleted != true && (a.Name != null && a.Name.Contains(key)), page, intPageSize, " Id desc ");
+            var userRoleIds = (await _userRoleServices.Query(it => it.UserId == _user.ID)).Select(it=>it.RoleId).ToList();
             PageModel<Role> roles;
-            if (key == "")
+            if (userRoleIds.Contains(1))
             {
-                roles = await _roleServices.QueryPage(a => a.IsDeleted != true 
-                  && a.Pid == f, page, intPageSize,
-                    " Id desc ");
+                roles = await _roleServices.QueryPage(a => a.IsDeleted != true
+                    && a.Pid == f && (key == "" || a.Name != null && a.Name.Contains(key)),
+                    page, intPageSize, " Id desc ");
             }
             else
             {
-                roles = await _roleServices.QueryPage(a => a.IsDeleted != true 
-                    && (a.Name != null && a.Name.Contains(key)), page, intPageSize,
-                    " Id desc ");
+                if (f > 0)
+                {
+                    roles = await _roleServices.QueryPage(a => a.IsDeleted != true
+                        && a.Pid == f && (key == "" || a.Name != null && a.Name.Contains(key)),
+                        page, intPageSize, " Id desc ");
+                }
+                else
+                {
+                    roles = await _roleServices.QueryPage(a => a.IsDeleted != true
+                        && userRoleIds.Contains(a.Id) && (key == "" || a.Name != null && a.Name.Contains(key)),
+                        page, intPageSize, " Id desc ");
+                }
             }
 
             foreach (var item in roles.data)
@@ -89,10 +100,9 @@ namespace Blog.Core.Controllers
         /// <summary>
         /// 获取角色树
         /// </summary>
-        /// <param name="pid">父级Id</param>
         /// <returns></returns>
         [HttpGet]
-        public async Task<MessageModel<RoleTree>> GetRoleTree(int pid = 0)
+        public async Task<MessageModel<RoleTree>> GetRoleTree()
         {
             var data = new MessageModel<RoleTree>();
             var roles = await _roleServices.Query(d => d.IsDeleted == false);
@@ -118,6 +128,54 @@ namespace Blog.Core.Controllers
             if (data.success)
             {
                 data.response = rootRoot;
+                data.msg = "获取成功";
+            }
+
+            return data;
+        }
+
+        /// <summary>
+        /// 获取角色树
+        /// </summary>
+        /// <param name="hasCurrentRole">是否包含当前角色</param>
+        /// <returns></returns>
+        [HttpGet]
+        public async Task<MessageModel<List<RoleTree>>> GetCurrentUserRoleTree(bool hasCurrentRole = false)
+        {
+            var userRoles = await _userRoleServices.Query(it => it.UserId == _user.ID);
+            var roleIds = userRoles.Select(it => it.Id).ToList();
+            var roles = await _roleServices.Query(it=> roleIds.Contains(it.Id));
+            var data = new MessageModel<List<RoleTree>>();
+            //超级管理员例外，可以操作所有角色。
+            var allRoles = await _roleServices.Query(d => d.IsDeleted == false);
+            var roleTrees = (from child in allRoles
+                             where child.IsDeleted == false
+                             orderby child.OrderSort
+                             select new RoleTree
+                             {
+                                 value = child.Id,
+                                 label = child.Name,
+                                 pid = child.Pid,
+                                 order = child.OrderSort,
+                             }).ToList();
+            var roleTreeList = new List<RoleTree>();
+            roleIds.ForEach(id =>
+            {
+                RoleTree rootRoot = new RoleTree
+                {
+                    value = id,
+                    pid = 0,
+                    label = roles.Find(it => it.Id == id).Name
+                };
+                RecursionHelper.LoopToAppendChildrenT(roleTrees, rootRoot);
+                roleTreeList.Add(rootRoot);
+            });
+            
+
+            data.success = true;
+            if (data.success)
+            {
+                data.response = roleTreeList;
                 data.msg = "获取成功";
             }
 

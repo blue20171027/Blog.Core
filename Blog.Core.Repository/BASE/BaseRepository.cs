@@ -53,8 +53,6 @@ namespace Blog.Core.Repository.Base
             _dbBase = unitOfWork.GetDbClient();
         }
 
-
-
         public async Task<TEntity> QueryById(object objId)
         {
             //return await Task.Run(() => _db.Queryable<TEntity>().InSingle(objId));
@@ -416,8 +414,6 @@ namespace Blog.Core.Repository.Base
             return await _db.Queryable<TEntity>().OrderByIF(!string.IsNullOrEmpty(strOrderByFileds), strOrderByFileds).WhereIF(!string.IsNullOrEmpty(strWhere), strWhere).ToPageListAsync(intPageIndex, intPageSize);
         }
 
-
-
         /// <summary>
         /// 分页查询[使用版本，其他分页未测试]
         /// </summary>
@@ -479,18 +475,18 @@ namespace Blog.Core.Repository.Base
         /// <returns></returns>
         public async Task<PageModel<TResult>> QueryTabsPage<T, T2, TResult>(
             Expression<Func<T, T2, object[]>> joinExpression,
+            Expression<Func<T, T2, bool>> whereExpression,
             Expression<Func<T, T2, TResult>> selectExpression,
-            Expression<Func<TResult, bool>> whereExpression,
             int intPageIndex = 1,
             int intPageSize = 20,
             string strOrderByFileds = null)
         {
 
             RefAsync<int> totalCount = 0;
-            var list = await _db.Queryable<T, T2>(joinExpression)
+            var list = await _db.Queryable(joinExpression)
+              .WhereIF(whereExpression != null, whereExpression)
              .Select(selectExpression)
              .OrderByIF(!string.IsNullOrEmpty(strOrderByFileds), strOrderByFileds)
-             .WhereIF(whereExpression != null, whereExpression)
              .ToPageListAsync(intPageIndex, intPageSize, totalCount);
             int pageCount = (Math.Ceiling(totalCount.ObjToDecimal() / intPageSize.ObjToDecimal())).ObjToInt();
             return new PageModel<TResult>() { dataCount = totalCount, pageCount = pageCount, page = intPageIndex, PageSize = intPageSize, data = list };
@@ -511,19 +507,20 @@ namespace Blog.Core.Repository.Base
         /// <returns></returns>
         public async Task<PageModel<TResult>> QueryTabsPage<T, T2, TResult>(
             Expression<Func<T, T2, object[]>> joinExpression,
-            Expression<Func<T, T2, TResult>> selectExpression,
-            Expression<Func<TResult, bool>> whereExpression,
+            Expression<Func<T, T2, bool>> whereExpression,
             Expression<Func<T, object>> groupExpression,
+            Expression<Func<T, T2, TResult>> selectExpression,
             int intPageIndex = 1,
             int intPageSize = 20,
             string strOrderByFileds = null)
         {
 
             RefAsync<int> totalCount = 0;
-            var list = await _db.Queryable<T, T2>(joinExpression).GroupBy(groupExpression)
+            var list = await _db.Queryable(joinExpression)
+             .WhereIF(whereExpression != null, whereExpression)
+             .GroupBy(groupExpression)
              .Select(selectExpression)
              .OrderByIF(!string.IsNullOrEmpty(strOrderByFileds), strOrderByFileds)
-             .WhereIF(whereExpression != null, whereExpression)
              .ToPageListAsync(intPageIndex, intPageSize, totalCount);
             int pageCount = (Math.Ceiling(totalCount.ObjToDecimal() / intPageSize.ObjToDecimal())).ObjToInt();
             return new PageModel<TResult>() { dataCount = totalCount, pageCount = pageCount, page = intPageIndex, PageSize = intPageSize, data = list };

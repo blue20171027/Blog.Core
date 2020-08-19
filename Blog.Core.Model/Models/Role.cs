@@ -87,6 +87,8 @@ namespace Blog.Core.Model.Models
         public DateTime? ModifyTime { get; set; } = DateTime.Now;
 
         [SugarColumn(IsIgnore = true)]
+        public int RoleId { get; set; }
+        [SugarColumn(IsIgnore = true)]
         public List<int> PidArr { get; set; }
         [SugarColumn(IsIgnore = true)]
         public List<string> PnameArr { get; set; } = new List<string>();
@@ -94,7 +96,6 @@ namespace Blog.Core.Model.Models
         public List<string> PCodeArr { get; set; } = new List<string>();
         [SugarColumn(IsIgnore = true)]
         public string MName { get; set; }
-
         [SugarColumn(IsIgnore = true)]
         public bool hasChildren { get; set; } = true;
     }
